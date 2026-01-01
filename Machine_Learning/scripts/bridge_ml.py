@@ -9,12 +9,118 @@ import numpy as np
 import os
 
 # ==========================================
+# 0. FUZZY LOGIC ENGINE (Integrated)
+# ==========================================
+def trapmf(x, params):
+    """Trapezoidal Membership Function"""
+    a, b, c, d = params
+    if x <= a or x >= d: return 0.0
+    if a < x < b: return (x - a) / (b - a)
+    if c < x < d: return (d - x) / (d - c)
+    return 1.0
+
+def trimf(x, params):
+    """Triangular Membership Function"""
+    a, b, c = params
+    if x <= a or x >= c: return 0.0
+    if a < x <= b: return (x - a) / (b - a)
+    if b < x < c: return (c - x) / (c - b)
+    return 0.0
+
+def hitung_membership(suhu, moisture, ph, ammonia, bau_val):
+    """Menghitung derajat keanggotaan (Fuzzification)."""
+    mu = {}
+
+    # --- SUHU ---
+    mu['suhu_dingin'] = trapmf(suhu, [0, 0, 28, 35]) 
+    mu['suhu_ideal']  = trimf(suhu, [30, 45, 55])
+    mu['suhu_panas']  = trapmf(suhu, [50, 60, 80, 80])
+
+    # --- KELEMBAPAN (MOISTURE) ---
+    mu['kelembapan_kering'] = trapmf(moisture, [0, 0, 30, 40])
+    mu['kelembapan_sedang'] = trimf(moisture, [40, 46, 52]) 
+    mu['kelembapan_basah']  = trapmf(moisture, [50, 60, 100, 100])
+
+    # --- PH ---
+    mu['ph_asam']   = trapmf(ph, [0, 0, 5, 6])
+    mu['ph_netral'] = trimf(ph, [5.0, 7.0, 9.0])
+    mu['ph_basa']   = trapmf(ph, [8, 9, 14, 14])
+
+    # --- VARIABEL SAFETY (AMMONIA & BAU) ---
+    mu['ammo_tinggi']   = trapmf(ammonia, [25, 30, 50, 50])
+    mu['bau_menyengat'] = trapmf(bau_val, [6, 8, 10, 10])
+
+    return mu
+
+def evaluasi_rules(mu, rules_json):
+    """Inference Engine berdasarkan JSON"""
+    aggregated = {'buruk': 0.0, 'sedang': 0.0, 'baik': 0.0, 'sangat_baik': 0.0}
+
+    # 1. Safety Override
+    bad_factor = max(mu['ammo_tinggi'], mu['bau_menyengat'])
+    if bad_factor > 0:
+        aggregated['buruk'] = bad_factor
+
+    # 2. Iterasi Rules
+    for rule in rules_json:
+        c_ph = "ph_" + rule['if']['ph'].lower()
+        c_suhu = "suhu_" + rule['if']['suhu'].lower()
+        c_mois = "kelembapan_" + rule['if']['kelembapan'].lower()
+        
+        target = rule['then'].lower().replace(" ", "_")
+
+        val_ph = mu.get(c_ph, 0)
+        val_suhu = mu.get(c_suhu, 0)
+        val_mois = mu.get(c_mois, 0)
+        
+        strength = min(val_ph, val_suhu, val_mois)
+
+        if target in aggregated:
+            aggregated[target] = max(aggregated[target], strength)
+
+    return aggregated
+
+def defuzzifikasi(aggregated):
+    """Menghitung Crisp Output (Score 0-100)"""
+    numerator = 0.0
+    denominator = 0.0
+    
+    for x in range(101):
+        mu_buruk  = trapmf(x, [0, 0, 30, 50])
+        mu_sedang = trimf(x, [40, 60, 80])
+        mu_baik   = trimf(x, [70, 85, 95])
+        mu_sb     = trapmf(x, [90, 95, 100, 100])
+        
+        res_buruk  = min(aggregated['buruk'], mu_buruk)
+        res_sedang = min(aggregated['sedang'], mu_sedang)
+        res_baik   = min(aggregated['baik'], mu_baik)
+        res_sb     = min(aggregated['sangat_baik'], mu_sb)
+        
+        final_mu = max(res_buruk, res_sedang, res_baik, res_sb)
+        
+        numerator += x * final_mu
+        denominator += final_mu
+
+    if denominator == 0: return 0
+    return numerator / denominator
+
+# ==========================================
 # 1. KONFIGURASI DAN LOAD MODEL
 # ==========================================
-print("⏳ Memuat paket model Machine Learning...")
+print("⏳ Memuat paket model & konfigurasi...")
 
+# Load Fuzzy Config
+FUZZY_RULES = []
+try:
+    with open('kompos_config.json', 'r') as f:
+        config_data = json.load(f)
+        FUZZY_RULES = config_data['rules']
+    print("✅ Fuzzy config loaded.")
+except Exception as e:
+    print(f"⚠️ Warning: Gagal load kompos_config.json ({e}). Fuzzy logic mungkin tidak akurat.")
+
+# Load ML Models
 model_path = 'prediksi.pkl'
-
 if not os.path.exists(model_path):
     print(f"❌ Error: File model '{model_path}' tidak ditemukan!")
     exit()
@@ -25,37 +131,19 @@ model_maturity = None
 
 try:
     loaded_object = joblib.load(model_path)
-
     if isinstance(loaded_object, dict):
-        print(f"📦 File Dictionary. Keys: {list(loaded_object.keys())}")
+        if 'rf_regressor_ammonia' in loaded_object: model_ammonia = loaded_object['rf_regressor_ammonia']
+        elif 'lgbm_ammonia' in loaded_object: model_ammonia = loaded_object['lgbm_ammonia']
         
-        # 1. Cari Model AMMONIA
-        if 'rf_regressor_ammonia' in loaded_object:
-            model_ammonia = loaded_object['rf_regressor_ammonia']
-        elif 'lgbm_ammonia' in loaded_object:
-            model_ammonia = loaded_object['lgbm_ammonia']
-        else:
-            for key, val in loaded_object.items():
-                if hasattr(val, 'predict') and 'ammonia' in key.lower():
-                    model_ammonia = val
-                    break
-        
-        # 2. Cari Model SCORE
-        if 'rf_regressor_score' in loaded_object:
-            model_score = loaded_object['rf_regressor_score']
-        
-        # 3. Cari Model MATURITY
-        if 'rf_classifier_maturity' in loaded_object:
-            model_maturity = loaded_object['rf_classifier_maturity']
-
+        if 'rf_regressor_score' in loaded_object: model_score = loaded_object['rf_regressor_score']
+        if 'rf_classifier_maturity' in loaded_object: model_maturity = loaded_object['rf_classifier_maturity']
     else:
         model_ammonia = loaded_object
 
     if model_ammonia is None:
         print("❌ CRITICAL: Model Ammonia tidak ditemukan!")
         exit()
-
-    print("🚀 Sistem Siap: Pipeline Prediksi Aktif")
+    print("🚀 ML Models Siap.")
 
 except Exception as e:
     print(f"❌ Gagal memuat model: {e}")
@@ -65,7 +153,6 @@ except Exception as e:
 # 2. KONFIGURASI FIREBASE
 # ==========================================
 cred_path = 'komposproject-dfe5e-firebase-adminsdk-fbsvc-235f1caa0c.json'
-
 if not os.path.exists(cred_path):
     print(f"❌ Error: File credential '{cred_path}' tidak ditemukan!")
     exit()
@@ -79,7 +166,7 @@ ref_logs = db.reference('sensor_logs')
 ref_now = db.reference('sensor_now')   
 
 # ==========================================
-# 3. KONFIGURASI MQTT
+# 3. KONFIGURASI MQTT & LOGIKA
 # ==========================================
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_TOPIC = "talha/sensor"
@@ -99,78 +186,71 @@ def on_message(client, userdata, msg):
         suhu = float(data_json.get('suhu', 0))
         moisture = float(data_json.get('moisture', 0))
         ph = float(data_json.get('ph', 7))
+        
+        # Default value untuk bau (bisa diambil dari sensor jika ada nanti)
+        val_bau = 0 
+        txt_bau = "Tidak Bau"
 
         print(f"\n📥 Input: T={suhu}, MC={moisture}, pH={ph}")
 
         # ============================================================
-        # 4. PIPELINE PREDIKSI (PERBAIKAN KOLOM)
+        # 4. PIPELINE PREDIKSI ML
         # ============================================================
         
-        # --- TAHAP 1: Prediksi AMMONIA ---
-        # Input: Temperature, MC(%), pH
-        input_ammonia = pd.DataFrame([[suhu, moisture, ph]], 
-                                     columns=['Temperature', 'MC(%)', 'pH'])
-        
+        # --- Prediksi AMMONIA ---
+        input_ammonia = pd.DataFrame([[suhu, moisture, ph]], columns=['Temperature', 'MC(%)', 'pH'])
         pred_ammonia = model_ammonia.predict(input_ammonia)[0]
         pred_ammonia = max(0.0, pred_ammonia)
+        pred_ammonia = pred_ammonia / 40.0 # Normalisasi
         
-        # --- NORMALISASI / KOMPENSASI REAL CASE ---
-        # Model ML saat ini memprediksi nilai mentah yang sangat tinggi (~900+).
-        # Normal compost ammonia range: 0 - 50 ppm (biasanya).
-        # Kita lakukan scaling down linear agar masuk akal untuk user.
-        # Asumsi: Raw 1000 ~= 25 ppm (Scale factor 40)
-        pred_ammonia = pred_ammonia / 40.0
-        
-        print(f"   └── 1. Ammonia : {pred_ammonia:.2f} ppm (Normalized)")
+        print(f"   └── [ML] Ammonia : {pred_ammonia:.2f} ppm")
 
-        # --- TAHAP 2: Prediksi SCORE ---
-        pred_score = 0
-        if model_score:
-            try:
-                # PERBAIKAN: Hapus 'Ammonia(mg/kg)' karena error sebelumnya bilang 'Unseen'.
-                # Kita coba hanya input dasar: Temperature, MC(%), pH
-                # Jika model butuh 'Day', kita akan lihat di log fitur yang diminta.
-                input_score = pd.DataFrame([[suhu, moisture, ph]], 
-                                           columns=['Temperature', 'MC(%)', 'pH'])
-                
-                pred_score = model_score.predict(input_score)[0]
-                print(f"   └── 2. Score   : {pred_score:.2f}")
-            except Exception as e:
-                print(f"   ⚠️ Gagal Score: {e}")
-                # DEBUG PENTING: Tampilkan fitur apa yang sebenarnya diminta model
-                if hasattr(model_score, 'feature_names_in_'):
-                    print(f"      [INFO] Model Score meminta fitur: {model_score.feature_names_in_}")
-
-        # --- TAHAP 3: Prediksi MATURITY ---
+        # --- Prediksi MATURITY ---
         pred_maturity = "Unknown"
         if model_maturity:
             try:
-                # Maturity sudah berhasil dengan format ini
                 input_maturity = pd.DataFrame([[suhu, moisture, ph, pred_ammonia]], 
                                               columns=['Temperature', 'MC(%)', 'pH', 'Ammonia(mg/kg)'])
-                
                 maturity_res = model_maturity.predict(input_maturity)[0]
-                
-                if isinstance(maturity_res, (np.integer, int, float)):
-                    pred_maturity = "Matang" if maturity_res == 1 else "Belum Matang"
-                else:
-                    pred_maturity = str(maturity_res)
-                    
-                print(f"   └── 3. Maturity: {pred_maturity}")
-            except Exception as e:
-                print(f"   ⚠️ Gagal Maturity: {e}")
-                if hasattr(model_maturity, 'feature_names_in_'):
-                    print(f"      [INFO] Model Maturity meminta fitur: {model_maturity.feature_names_in_}")
+                pred_maturity = "Matang" if maturity_res == 1 else "Belum Matang"
+                print(f"   └── [ML] Maturity: {pred_maturity}")
+            except Exception:
+                pass
 
         # ============================================================
-        # 5. SIMPAN KE FIREBASE
+        # 5. PIPELINE FUZZY LOGIC (ENGINE)
+        # ============================================================
+        # Gunakan hasil prediksi ammonia untuk fuzzy
+        mu = hitung_membership(suhu, moisture, ph, pred_ammonia, val_bau)
+        agg = evaluasi_rules(mu, FUZZY_RULES)
+        fuzzy_score = defuzzifikasi(agg)
+        
+        fuzzy_label = "TIDAK TERDEFINISI"
+        if fuzzy_score <= 45: fuzzy_label = "BURUK"
+        elif fuzzy_score <= 75: fuzzy_label = "CUKUP / SEDANG"
+        elif fuzzy_score <= 92: fuzzy_label = "BAIK"
+        else: fuzzy_label = "SANGAT BAIK"
+
+        print(f"   └── [FZ] Score   : {fuzzy_score:.2f} / 100")
+        print(f"   └── [FZ] Label   : {fuzzy_label}")
+
+        # ============================================================
+        # 6. SIMPAN KE FIREBASE
         # ============================================================
         data_to_save = {
             'suhu': suhu,
             'moisture': moisture,
             'ph': ph,
             'ammonia': round(pred_ammonia, 2),
-            'score': round(pred_score, 2),
+            
+            # Kita simpan dua versi score agar aman
+            'ml_score': 0, # Placeholder jika ML score dipakai
+            'fuzzy_score': round(fuzzy_score, 2),
+            'fuzzy_label': fuzzy_label, 
+            
+            # Field 'score' utama pakai fuzzy (lebih robust)
+            'score': round(fuzzy_score, 2),
+            
             'maturity': pred_maturity,
             'timestamp': int(time.time() * 1000)
         }
