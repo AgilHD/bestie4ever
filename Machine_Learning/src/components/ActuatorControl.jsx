@@ -1,14 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Power, Droplets, Wind } from 'lucide-react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getDatabase, ref, set, onValue } from 'firebase/database';
 import clsx from 'clsx';
 
+// Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyD3BiXLDv22IfcJ-w1VQlMj7Sl9JFBQnuo",
+    authDomain: "komposproject-dfe5e.firebaseapp.com",
+    databaseURL: "https://komposproject-dfe5e-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "komposproject-dfe5e",
+    storageBucket: "komposproject-dfe5e.firebasestorage.app",
+    messagingSenderId: "702334195562",
+    appId: "1:702334195562:web:cc7a875f559e4afa05b713",
+    measurementId: "G-XYNFFN4VNP"
+};
+
+// Initialize Firebase safely
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getDatabase(app);
+
 export default function ActuatorControl({ isDark }) {
-    // Local state for Actuators (Mock functionality for now)
     const [pumpOn, setPumpOn] = useState(false);
     const [aeratorOn, setAeratorOn] = useState(false);
+    const [loading, setLoading] = useState(true);
 
-    const togglePump = () => setPumpOn(!pumpOn);
-    const toggleAerator = () => setAeratorOn(!aeratorOn);
+    // Sync with Firebase on Load
+    useEffect(() => {
+        const controlRef = ref(db, 'controls');
+        const unsubscribe = onValue(controlRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setPumpOn(!!data.pump);
+                setAeratorOn(!!data.aerator);
+            }
+            setLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Toggle Handlers
+    const togglePump = () => {
+        const newState = !pumpOn;
+        setPumpOn(newState);
+        set(ref(db, 'controls/pump'), newState ? 1 : 0);
+    };
+
+    const toggleAerator = () => {
+        const newState = !aeratorOn;
+        setAeratorOn(newState);
+        set(ref(db, 'controls/aerator'), newState ? 1 : 0);
+    };
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 mt-2 animate-fade-in-up">
@@ -44,9 +86,11 @@ export default function ActuatorControl({ isDark }) {
 
                     <button
                         onClick={togglePump}
+                        disabled={loading}
                         className={clsx(
                             "w-14 h-8 rounded-full p-1 transition-colors duration-300 ease-in-out cursor-pointer",
-                            pumpOn ? "bg-blue-500" : "bg-slate-600/30"
+                            pumpOn ? "bg-blue-500" : "bg-slate-600/30",
+                            loading && "opacity-50 cursor-not-allowed"
                         )}
                     >
                         <div className={clsx(
@@ -90,9 +134,11 @@ export default function ActuatorControl({ isDark }) {
 
                     <button
                         onClick={toggleAerator}
+                        disabled={loading}
                         className={clsx(
                             "w-14 h-8 rounded-full p-1 transition-colors duration-300 ease-in-out cursor-pointer",
-                            aeratorOn ? "bg-cyan-500" : "bg-slate-600/30"
+                            aeratorOn ? "bg-cyan-500" : "bg-slate-600/30",
+                            loading && "opacity-50 cursor-not-allowed"
                         )}
                     >
                         <div className={clsx(
