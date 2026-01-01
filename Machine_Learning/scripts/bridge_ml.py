@@ -170,6 +170,7 @@ ref_now = db.reference('sensor_now')
 # ==========================================
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_TOPIC = "talha/sensor"
+MQTT_CONTROL_TOPIC = "talha/control"
 
 def on_connect(client, userdata, flags, rc):
     print(f"✅ Terhubung ke MQTT Broker (Code: {rc})")
@@ -262,6 +263,57 @@ def on_message(client, userdata, msg):
 
     except Exception as e:
         print(f"⚠️ Error memproses data: {e}")
+
+# ==========================================
+# 4. LISTENER CONTROL (Actuator Backend)
+# ==========================================
+last_control_state = None
+
+def control_listener(event):
+    """
+    Callback jika ada perubahan di Firebase path 'controls'.
+    Format event.data: {'pump': 1, 'aerator': 0} atau value tunggal.
+    """
+    global last_control_state
+    
+    # Ambil data terbaru secara penuh untuk memastikan konsistensi
+    try:
+        full_state = db.reference('controls').get()
+        if full_state is None: return
+
+        # Default 0 jika null
+        pump = 1 if full_state.get('pump') == 1 else 0
+        aerator = 1 if full_state.get('aerator') == 1 else 0
+
+        # Anti-spam: Cek apakah state berubah dari yang terakhir dikirim
+        current_hash = f"{pump}-{aerator}"
+        if current_hash == last_control_state:
+            return
+        last_control_state = current_hash
+
+        # Payload JSON ke ESP32
+        # PENTING: Sertakan "auto": 0 agar ESP32 masuk ke MODE MANUAL
+        payload = json.dumps({
+            "pump": pump,
+            "aerator": aerator,
+            "auto": 0 
+        })
+        
+        print(f"\n📤 [CONTROL] Mengirim Perintah ke ESP32: {payload}")
+        client.publish(MQTT_CONTROL_TOPIC, payload)
+
+    except Exception as e:
+        print(f"⚠️ Error di control_listener: {e}")
+
+# ==========================================
+# 5. MAIN EXECUTION
+# ==========================================
+print("🎧 Mendengarkan perintah Actuator dari Firebase...")
+try:
+    # Memasang listener pada background thread
+    db.reference('controls').listen(control_listener)
+except Exception as e:
+    print(f"⚠️ Gagal memasang listener Firebase: {e}")
 
 # Setup MQTT Client
 client = mqtt.Client()
