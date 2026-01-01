@@ -1,0 +1,51 @@
+{
+  "project_name": "Smart Compost Monitoring",
+  "description": "Full Fuzzy Rule Base (27 Rules) untuk cakupan logika 100%",
+  "default_data": {
+    "suhu": 0,
+    "moisture": 0,
+    "ph": 0,
+    "ammonia": 0
+  },
+  "variables": {
+    "inputs": {
+      "suhu": ["Dingin", "Ideal", "Panas"],
+      "ph": ["Asam", "Netral", "Basa"],
+      "kelembapan": ["Kering", "Sedang", "Basah"]
+    },
+    "outputs": {
+      "status_kompos": ["Buruk", "Sedang", "Baik", "Sangat Baik"]
+    }
+  },
+  "rules": [
+    { "id": 1, "if": { "ph": "Asam", "suhu": "Dingin", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 2, "if": { "ph": "Asam", "suhu": "Dingin", "kelembapan": "Sedang" }, "then": "Buruk" },
+    { "id": 3, "if": { "ph": "Asam", "suhu": "Dingin", "kelembapan": "Basah" }, "then": "Buruk" },
+    { "id": 4, "if": { "ph": "Asam", "suhu": "Ideal", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 5, "if": { "ph": "Asam", "suhu": "Ideal", "kelembapan": "Sedang" }, "then": "Sedang" },
+    { "id": 6, "if": { "ph": "Asam", "suhu": "Ideal", "kelembapan": "Basah" }, "then": "Buruk" },
+    { "id": 7, "if": { "ph": "Asam", "suhu": "Panas", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 8, "if": { "ph": "Asam", "suhu": "Panas", "kelembapan": "Sedang" }, "then": "Sedang" },
+    { "id": 9, "if": { "ph": "Asam", "suhu": "Panas", "kelembapan": "Basah" }, "then": "Buruk" },
+
+    { "id": 10, "if": { "ph": "Netral", "suhu": "Dingin", "kelembapan": "Kering" }, "then": "Sedang" },
+    { "id": 11, "if": { "ph": "Netral", "suhu": "Dingin", "kelembapan": "Sedang" }, "then": "Baik" },
+    { "id": 12, "if": { "ph": "Netral", "suhu": "Dingin", "kelembapan": "Basah" }, "then": "Sedang" },
+    { "id": 13, "if": { "ph": "Netral", "suhu": "Ideal", "kelembapan": "Kering" }, "then": "Baik" },
+    { "id": 14, "if": { "ph": "Netral", "suhu": "Ideal", "kelembapan": "Sedang" }, "then": "Sangat Baik" },
+    { "id": 15, "if": { "ph": "Netral", "suhu": "Ideal", "kelembapan": "Basah" }, "then": "Baik" },
+    { "id": 16, "if": { "ph": "Netral", "suhu": "Panas", "kelembapan": "Kering" }, "then": "Sedang" },
+    { "id": 17, "if": { "ph": "Netral", "suhu": "Panas", "kelembapan": "Sedang" }, "then": "Baik" },
+    { "id": 18, "if": { "ph": "Netral", "suhu": "Panas", "kelembapan": "Basah" }, "then": "Sedang" },
+
+    { "id": 19, "if": { "ph": "Basa", "suhu": "Dingin", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 20, "if": { "ph": "Basa", "suhu": "Dingin", "kelembapan": "Sedang" }, "then": "Buruk" },
+    { "id": 21, "if": { "ph": "Basa", "suhu": "Dingin", "kelembapan": "Basah" }, "then": "Buruk" },
+    { "id": 22, "if": { "ph": "Basa", "suhu": "Ideal", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 23, "if": { "ph": "Basa", "suhu": "Ideal", "kelembapan": "Sedang" }, "then": "Sedang" },
+    { "id": 24, "if": { "ph": "Basa", "suhu": "Ideal", "kelembapan": "Basah" }, "then": "Buruk" },
+    { "id": 25, "if": { "ph": "Basa", "suhu": "Panas", "kelembapan": "Kering" }, "then": "Buruk" },
+    { "id": 26, "if": { "ph": "Basa", "suhu": "Panas", "kelembapan": "Sedang" }, "then": "Sedang" },
+    { "id": 27, "if": { "ph": "Basa", "suhu": "Panas", "kelembapan": "Basah" }, "then": "Buruk" }
+  ]
+}
