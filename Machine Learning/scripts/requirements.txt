@@ -1,0 +1,7 @@
+paho-mqtt
+firebase-admin
+joblib
+pandas
+numpy
+scikit-learn
+lightgbm
