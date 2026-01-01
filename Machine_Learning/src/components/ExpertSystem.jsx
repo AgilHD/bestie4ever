@@ -3,8 +3,8 @@ import { Sliders, Sparkles, BrainCircuit, Wind, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { calculateFuzzy } from '../utils/fuzzyLogic';
 
-export default function ExpertSystem({ isDark, data }) {
-    const [isAuto, setIsAuto] = useState(true);
+export default function ExpertSystem({ isDark }) {
+    // Manual inputs only
     const [inputs, setInputs] = useState({
         suhu: 35,
         kelembapan: 50,
@@ -16,35 +16,8 @@ export default function ExpertSystem({ isDark, data }) {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Auto-sync & Calculate Logic
-    React.useEffect(() => {
-        if (isAuto && data) {
-            const newInputs = {
-                suhu: parseFloat(data.suhu) || 0,
-                kelembapan: parseFloat(data.moisture) || 0,
-                ph: parseFloat(data.ph) || 7.0,
-                ammonia: parseFloat(data.ammonia) || 0,
-                // For 'bau', sensors usually don't send categorical data, so we might default or estimate
-                // But if backend sends it, we use it. For now maintaing default low or previous value if mostly manual.
-                bau: 1.5
-            };
-            setInputs(newInputs);
-
-            const res = calculateFuzzy(
-                newInputs.suhu,
-                newInputs.ph,
-                newInputs.kelembapan,
-                newInputs.ammonia,
-                newInputs.bau
-            );
-            setResult(res);
-        }
-    }, [isAuto, data]);
-
     const handleInput = (key, value) => {
-        if (!isAuto) {
-            setInputs(prev => ({ ...prev, [key]: parseFloat(value) }));
-        }
+        setInputs(prev => ({ ...prev, [key]: parseFloat(value) }));
     };
 
     const handleAnalyze = (e) => {
@@ -52,7 +25,7 @@ export default function ExpertSystem({ isDark, data }) {
         setLoading(true);
         setResult(null);
 
-        // Simulate calculation delay for effect (Manual Mode only)
+        // Simulate calculation delay for effect
         setTimeout(() => {
             const res = calculateFuzzy(
                 inputs.suhu,
@@ -90,40 +63,9 @@ export default function ExpertSystem({ isDark, data }) {
                             Expert System Analysis
                         </h2>
                         <p className={clsx("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>
-                            {isAuto ? "Automated Analysis using Live Data" : "Manual Quality Check"}
+                            Manual Quality Check Simulation
                         </p>
                     </div>
-                </div>
-
-                {/* MODE TOGGLE */}
-                <div className={clsx(
-                    "flex items-center gap-2 p-1 rounded-xl border cursor-pointer", // ADDED cursor-pointer
-                    isDark ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"
-                )}>
-                    <button
-                        onClick={() => setIsAuto(true)}
-                        className={clsx(
-                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer", // ADDED cursor-pointer
-                            isAuto
-                                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                                : (isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900")
-                        )}
-                    >
-                        <Sparkles size={16} />
-                        Auto Live
-                    </button>
-                    <button
-                        onClick={() => setIsAuto(false)}
-                        className={clsx(
-                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer", // ADDED cursor-pointer
-                            !isAuto
-                                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                                : (isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900")
-                        )}
-                    >
-                        <Sliders size={16} />
-                        Manual
-                    </button>
                 </div>
             </div>
 
@@ -134,14 +76,6 @@ export default function ExpertSystem({ isDark, data }) {
                     "rounded-3xl p-8 shadow-xl border transition-all relative",
                     isDark ? "bg-slate-900/50 border-slate-800" : "bg-white border-slate-200"
                 )}>
-                    {isAuto && (
-                        <div className="absolute inset-0 z-10 bg-slate-900/10 backdrop-blur-[1px] rounded-3xl flex items-center justify-center pointer-events-none">
-                            <div className="bg-emerald-600/90 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg backdrop-blur-md">
-                                Live Sync Active
-                            </div>
-                        </div>
-                    )}
-
                     <h3 className={clsx("flex items-center gap-2 text-xl font-bold mb-6", isDark ? "text-emerald-400" : "text-emerald-600")}>
                         <Sliders className="w-5 h-5" />
                         Input Parameter
@@ -155,12 +89,10 @@ export default function ExpertSystem({ isDark, data }) {
                                 type="number"
                                 min="0" max="100" step="0.1"
                                 value={inputs.suhu}
-                                disabled={isAuto}
                                 onChange={(e) => handleInput('suhu', e.target.value)}
                                 className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all cursor-pointer hover:bg-slate-50/5",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
                                 )}
                                 placeholder="Enter Temperature..."
                             />
@@ -173,12 +105,10 @@ export default function ExpertSystem({ isDark, data }) {
                                 type="number"
                                 min="0" max="100" step="1"
                                 value={inputs.kelembapan}
-                                disabled={isAuto}
                                 onChange={(e) => handleInput('kelembapan', e.target.value)}
                                 className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all cursor-pointer hover:bg-slate-50/5",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
                                 )}
                                 placeholder="Enter Moisture..."
                             />
@@ -191,12 +121,10 @@ export default function ExpertSystem({ isDark, data }) {
                                 type="number"
                                 min="0" max="14" step="0.1"
                                 value={inputs.ph}
-                                disabled={isAuto}
                                 onChange={(e) => handleInput('ph', e.target.value)}
                                 className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all cursor-pointer hover:bg-slate-50/5",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
                                 )}
                                 placeholder="Enter pH Level..."
                             />
@@ -212,12 +140,10 @@ export default function ExpertSystem({ isDark, data }) {
                                 type="number"
                                 min="0" max="1000" step="0.1"
                                 value={inputs.ammonia}
-                                disabled={isAuto}
                                 onChange={(e) => handleInput('ammonia', e.target.value)}
                                 className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-all",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5"
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-all cursor-pointer hover:bg-slate-50/5",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
                                 )}
                                 placeholder="Enter Ammonia..."
                             />
@@ -231,12 +157,10 @@ export default function ExpertSystem({ isDark, data }) {
                             </label>
                             <select
                                 value={inputs.bau}
-                                disabled={isAuto}
                                 onChange={(e) => handleInput('bau', e.target.value)}
                                 className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all appearance-none",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900",
-                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5"
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all appearance-none cursor-pointer hover:bg-slate-50/5",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900"
                                 )}
                             >
                                 <option value="1.5">1. Tidak Bau (Aroma Tanah)</option>
@@ -245,14 +169,12 @@ export default function ExpertSystem({ isDark, data }) {
                             </select>
                         </div>
 
-                        {!isAuto && (
-                            <button type="submit"
-                                disabled={loading}
-                                className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                                <Sparkles className="w-5 h-5" />
-                                {loading ? "Calculating..." : "Analyze Quality"}
-                            </button>
-                        )}
+                        <button type="submit"
+                            disabled={loading}
+                            className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                            <Sparkles className="w-5 h-5" />
+                            {loading ? "Calculating..." : "Analyze Quality"}
+                        </button>
                     </form>
                 </div>
 
@@ -282,7 +204,7 @@ export default function ExpertSystem({ isDark, data }) {
                             </div>
                             <h4 className="text-lg font-medium">Ready to Analyze</h4>
                             <p className="text-sm opacity-70">
-                                {isAuto ? "Waiting for data..." : "Enter parameters and click Analyze"}
+                                Enter parameters and click Analyze
                             </p>
                         </div>
                     )}
@@ -316,7 +238,7 @@ export default function ExpertSystem({ isDark, data }) {
                             )}>
                                 <h4 className={clsx("text-3xl font-bold mb-1", resultColor)}>{result.label}</h4>
                                 <p className="text-sm opacity-60">
-                                    {isAuto ? "Live Auto-Calculation" : "Manual Fuzzy Calculation"}
+                                    Manual Fuzzy Calculation
                                 </p>
                             </div>
                         </div>
