@@ -9,7 +9,7 @@ export default function ExpertSystem({ isDark }) {
         suhu: 35,
         kelembapan: 50,
         ph: 7.0,
-        ammonia: 0,
+        // ammonia: 0, // Removed from UI as requested
         bau: 1.5 // Default: Tidak Bau (1.5)
     });
 
@@ -31,7 +31,7 @@ export default function ExpertSystem({ isDark }) {
                 inputs.suhu,
                 inputs.ph,
                 inputs.kelembapan,
-                inputs.ammonia,
+                0, // Default Ammonia to 0 since we removed the input
                 inputs.bau
             );
             setResult(res);
@@ -87,7 +87,7 @@ export default function ExpertSystem({ isDark }) {
                             <label className="text-sm font-medium block">Temperature (°C)</label>
                             <input
                                 type="number"
-                                min="0" max="100" step="0.1"
+                                min="0" max="100" step="any" // Changed to 'any' for decimals
                                 value={inputs.suhu}
                                 onChange={(e) => handleInput('suhu', e.target.value)}
                                 className={clsx(
@@ -103,7 +103,7 @@ export default function ExpertSystem({ isDark }) {
                             <label className="text-sm font-medium block">Moisture (%)</label>
                             <input
                                 type="number"
-                                min="0" max="100" step="1"
+                                min="0" max="100" step="any" // Changed to 'any'
                                 value={inputs.kelembapan}
                                 onChange={(e) => handleInput('kelembapan', e.target.value)}
                                 className={clsx(
@@ -119,7 +119,7 @@ export default function ExpertSystem({ isDark }) {
                             <label className="text-sm font-medium block">Acidity (pH)</label>
                             <input
                                 type="number"
-                                min="0" max="14" step="0.1"
+                                min="0" max="14" step="any" // Changed to 'any'
                                 value={inputs.ph}
                                 onChange={(e) => handleInput('ph', e.target.value)}
                                 className={clsx(
@@ -130,24 +130,7 @@ export default function ExpertSystem({ isDark }) {
                             />
                         </div>
 
-                        {/* Ammonia */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium flex items-center gap-2">
-                                <Activity size={16} />
-                                Ammonia (ppm)
-                            </label>
-                            <input
-                                type="number"
-                                min="0" max="1000" step="0.1"
-                                value={inputs.ammonia}
-                                onChange={(e) => handleInput('ammonia', e.target.value)}
-                                className={clsx(
-                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-all cursor-pointer hover:bg-slate-50/5",
-                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400"
-                                )}
-                                placeholder="Enter Ammonia..."
-                            />
-                        </div>
+                        {/* Ammonia Removed */}
 
                         {/* Bau */}
                         <div className="space-y-2">
