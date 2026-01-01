@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sliders, Sparkles, BrainCircuit } from 'lucide-react';
+import { Sliders, Sparkles, BrainCircuit, Wind, Activity } from 'lucide-react';
 import clsx from 'clsx';
 import { calculateFuzzy } from '../utils/fuzzyLogic';
 
@@ -8,7 +8,9 @@ export default function ExpertSystem({ isDark, data }) {
     const [inputs, setInputs] = useState({
         suhu: 35,
         kelembapan: 50,
-        ph: 7.0
+        ph: 7.0,
+        ammonia: 0,
+        bau: 1.5 // Default: Tidak Bau (1.5)
     });
 
     const [result, setResult] = useState(null);
@@ -20,12 +22,21 @@ export default function ExpertSystem({ isDark, data }) {
             const newInputs = {
                 suhu: parseFloat(data.suhu) || 0,
                 kelembapan: parseFloat(data.moisture) || 0,
-                ph: parseFloat(data.ph) || 7.0
+                ph: parseFloat(data.ph) || 7.0,
+                ammonia: parseFloat(data.ammonia) || 0,
+                // For 'bau', sensors usually don't send categorical data, so we might default or estimate
+                // But if backend sends it, we use it. For now maintaing default low or previous value if mostly manual.
+                bau: 1.5
             };
             setInputs(newInputs);
 
-            // Auto Calculation (Updates immediately when data changes)
-            const res = calculateFuzzy(newInputs.suhu, newInputs.ph, newInputs.kelembapan);
+            const res = calculateFuzzy(
+                newInputs.suhu,
+                newInputs.ph,
+                newInputs.kelembapan,
+                newInputs.ammonia,
+                newInputs.bau
+            );
             setResult(res);
         }
     }, [isAuto, data]);
@@ -43,7 +54,13 @@ export default function ExpertSystem({ isDark, data }) {
 
         // Simulate calculation delay for effect (Manual Mode only)
         setTimeout(() => {
-            const res = calculateFuzzy(inputs.suhu, inputs.ph, inputs.kelembapan);
+            const res = calculateFuzzy(
+                inputs.suhu,
+                inputs.ph,
+                inputs.kelembapan,
+                inputs.ammonia,
+                inputs.bau
+            );
             setResult(res);
             setLoading(false);
         }, 800);
@@ -52,9 +69,10 @@ export default function ExpertSystem({ isDark, data }) {
     // Color Logic
     const getColor = (label) => {
         if (!label) return "text-slate-500";
-        if (label === 'Buruk') return "text-red-500";
-        if (label === 'Sedang') return "text-amber-500";
-        if (label === 'Baik') return "text-emerald-400";
+        if (label.includes('Buruk')) return "text-red-500";
+        if (label.includes('Sedang')) return "text-amber-500";
+        if (label.includes('Baik')) return "text-emerald-400";
+        // Sangat Baik
         return "text-emerald-500";
     };
 
@@ -79,13 +97,13 @@ export default function ExpertSystem({ isDark, data }) {
 
                 {/* MODE TOGGLE */}
                 <div className={clsx(
-                    "flex items-center gap-2 p-1 rounded-xl border",
+                    "flex items-center gap-2 p-1 rounded-xl border cursor-pointer", // ADDED cursor-pointer
                     isDark ? "bg-slate-900 border-slate-700" : "bg-white border-slate-200"
                 )}>
                     <button
                         onClick={() => setIsAuto(true)}
                         className={clsx(
-                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer", // ADDED cursor-pointer
                             isAuto
                                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
                                 : (isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900")
@@ -97,7 +115,7 @@ export default function ExpertSystem({ isDark, data }) {
                     <button
                         onClick={() => setIsAuto(false)}
                         className={clsx(
-                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+                            "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 cursor-pointer", // ADDED cursor-pointer
                             !isAuto
                                 ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
                                 : (isDark ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900")
@@ -142,7 +160,7 @@ export default function ExpertSystem({ isDark, data }) {
                                 className={clsx(
                                     "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all",
                                     isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto && "opacity-70 cursor-not-allowed"
+                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
                                 )}
                                 placeholder="Enter Temperature..."
                             />
@@ -160,7 +178,7 @@ export default function ExpertSystem({ isDark, data }) {
                                 className={clsx(
                                     "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all",
                                     isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto && "opacity-70 cursor-not-allowed"
+                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
                                 )}
                                 placeholder="Enter Moisture..."
                             />
@@ -178,16 +196,59 @@ export default function ExpertSystem({ isDark, data }) {
                                 className={clsx(
                                     "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all",
                                     isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
-                                    isAuto && "opacity-70 cursor-not-allowed"
+                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5" // ADDED cursor-pointer
                                 )}
                                 placeholder="Enter pH Level..."
                             />
                         </div>
 
+                        {/* Ammonia */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <Activity size={16} />
+                                Ammonia (ppm)
+                            </label>
+                            <input
+                                type="number"
+                                min="0" max="1000" step="0.1"
+                                value={inputs.ammonia}
+                                disabled={isAuto}
+                                onChange={(e) => handleInput('ammonia', e.target.value)}
+                                className={clsx(
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-yellow-500/50 transition-all",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white placeholder-slate-500" : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400",
+                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5"
+                                )}
+                                placeholder="Enter Ammonia..."
+                            />
+                        </div>
+
+                        {/* Bau */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                                <Wind size={16} />
+                                Smell Condition (Bau)
+                            </label>
+                            <select
+                                value={inputs.bau}
+                                disabled={isAuto}
+                                onChange={(e) => handleInput('bau', e.target.value)}
+                                className={clsx(
+                                    "w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all appearance-none",
+                                    isDark ? "bg-slate-800 border-slate-700 text-white" : "bg-slate-50 border-slate-200 text-slate-900",
+                                    isAuto ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:bg-slate-50/5"
+                                )}
+                            >
+                                <option value="1.5">1. Tidak Bau (Aroma Tanah)</option>
+                                <option value="5.0">2. Cukup Bau (Agak Menyengat)</option>
+                                <option value="9.0">3. Bau Busuk (Menyengat)</option>
+                            </select>
+                        </div>
+
                         {!isAuto && (
                             <button type="submit"
                                 disabled={loading}
-                                className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transform hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
                                 <Sparkles className="w-5 h-5" />
                                 {loading ? "Calculating..." : "Analyze Quality"}
                             </button>
