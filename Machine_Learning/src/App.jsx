@@ -9,6 +9,7 @@ import StatsCard from './components/StatsCard';
 import ChartSection from './components/ChartSection';
 import HistoryTable from './components/HistoryTable';
 import ExpertSystem from './components/ExpertSystem';
+import ActuatorControl from './components/ActuatorControl';
 import clsx from 'clsx';
 
 // ==========================================
@@ -78,15 +79,6 @@ export default function App() {
           };
         });
 
-        // Sort: Newest first for table, Oldest first for chart
-        const sortedByTime = formattedData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)); // This might need parsing logic if timestamp is string
-        // Actually, let's trust the firebase order mostly, but ensure we have arrays
-        // Since we did Object.keys, order is not guaranteed.
-        // Let's assume input timestamp is ISO string or sortable. 
-        // If it's LocaleTimeString it's hard to sort. 
-        // Ideally we keep original timestamp for sorting.
-
-        // Re-map to keep original timestamp for sorting
         const rawData = Object.keys(data).map(key => ({ id: key, ...data[key] }));
         rawData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
@@ -194,6 +186,9 @@ export default function App() {
           />
         </div>
 
+        {/* NEW ACTUATOR CONTROL SECTION */}
+        <ActuatorControl isDark={isDark} />
+
         {/* MAIN ANALYSIS SECTION */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           {/* Chart takes up 2/3 */}
@@ -249,7 +244,7 @@ export default function App() {
 
         {/* EXPERT SYSTEM - Embedded */}
         <div className="mt-8 border-t border-dashed border-slate-700/50 pt-8">
-          <ExpertSystem isDark={isDark} data={currentData} />
+          <ExpertSystem isDark={isDark} />
         </div>
 
       </main>
